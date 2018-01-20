@@ -1,0 +1,74 @@
+version: "2"
+services:
+    appdata:
+        image: amazonlinux
+        command: "sleep infinity"
+        volumes:
+          - ./:/var/www/html
+    php:
+        build:
+          context: ./
+          dockerfile: php.dockerfile
+        ports:
+          - "9000:9000"
+        volumes_from:
+          - appdata
+        # volumes:
+        #   - ./docker/php/logs/:/var/logs/php/
+        tmpfs:
+          - /run:exec,mode=777
+          - /tmp:exec,mode=777
+        environment:
+          - "DB_PORT=3306"
+          - "DB_HOST=mysql"
+        links:
+          - mysql
+    nginx_backend:
+        build:
+          context: ./
+          dockerfile: nginx_backend.dockerfile
+        working_dir: /var/www/html
+        volumes_from:
+            - appdata
+        # volumes:
+        #     - ./docker/nginx/logs/:/var/logs/nginx/
+        ports:
+            - "8190:8190"
+        depends_on:
+            - php
+        environment:
+            - "NGINX_SERVER_NAME=squady.local"
+        command: /bin/bash -c "sed "s/NGINX_SERVER_NAME/$$NGINX_SERVER_NAME/" < /etc/nginx/conf.templates/backend.conf > /etc/nginx/conf.d/backend.conf && nginx -g 'daemon off;'"
+    nginx_frontend:
+        build:
+          context: ./
+          dockerfile: nginx_frontend.dockerfile
+        working_dir: /var/www/html
+        volumes_from:
+            - appdata
+        # volumes:
+        #     - ./docker/nginx/logs/:/var/logs/nginx/
+        ports:
+            - "80:8180"
+        links:
+            - nginx_backend
+        depends_on:
+            - php
+            - nginx_backend
+        environment:
+             - "NGINX_SERVER_NAME=squady.local"
+        command: /bin/bash -c "sed "s/NGINX_SERVER_NAME/$$NGINX_SERVER_NAME/" < /etc/nginx/conf.templates/frontend.conf > /etc/nginx/conf.d/frontend.conf && nginx -g 'daemon off;'"
+    mysql:
+        image: mysql:5.7
+        environment:
+            - MYSQL_DATABASE=squady
+            - MYSQL_USER=squady_dbusr
+            - MYSQL_PASSWORD=4erYduUd8YKaGr3c
+            - MYSQL_ALLOW_EMPTY_PASSWORD=no
+        ports:
+            - "3306:3306"
+        volumes:
+            #- ./docker/mysql/logs/:/var/logs/mysql/
+            - mysqldata:/var/lib/mysql
+volumes:
+     mysqldata:
