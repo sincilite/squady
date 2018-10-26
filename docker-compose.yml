@@ -50,6 +50,7 @@ services:
         #     - ./docker/nginx/logs/:/var/logs/nginx/
         ports:
             - "80:8180"
+            - "443:443"
         links:
             - nginx_backend
         depends_on:
